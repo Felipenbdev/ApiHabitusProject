@@ -34,4 +34,15 @@ public class UsuarioController {
     public Usuario buscar(@PathVariable Long id) {
         return usuarioRepository.findById(id).orElse(null);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deletar(@PathVariable Long id) {
+        if (!usuarioRepository.existsById(id)) {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+        usuarioRepository.deleteById(id);
+        return ResponseEntity.ok().body("Usuário deletado com sucesso!");
+    }
 }
