@@ -4,6 +4,7 @@ FROM eclipse-temurin:21-jdk-jammy
 
 WORKDIR /app
 
+RUN chmod +x gradlew
 
 COPY . .
 
