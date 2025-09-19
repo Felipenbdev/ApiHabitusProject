@@ -1,67 +1,72 @@
 package com.habitus.habitus.controller;
 
 import com.habitus.habitus.model.Tarefa;
+import com.habitus.habitus.model.Usuario;
 import com.habitus.habitus.repository.TarefasRepository;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/tarefas")
 public class TarefaController {
+
     @Autowired
     private TarefasRepository tarefasRepository;
 
 
     @GetMapping
-    public List<Tarefa> listar() {
-        return tarefasRepository.findAll();
-    }
+    public ResponseEntity<?> listar(HttpSession session) {
+        Usuario usuario = (Usuario) session.getAttribute("user");
+        if (usuario == null) return ResponseEntity.status(401).body("Faça login primeiro");
 
-
-    @GetMapping("/{id}")
-    public Tarefa buscar(@PathVariable Long id) {
-        return tarefasRepository.findById(id).orElse(null);
+        return ResponseEntity.ok(tarefasRepository.findByUsuarioId(usuario.getId()));
     }
 
 
     @PostMapping
-    public Tarefa criar(@RequestBody Tarefa tarefa) {
-        return tarefasRepository.save(tarefa);
+    public ResponseEntity<?> criar(@RequestBody Tarefa tarefa, HttpSession session) {
+        Usuario usuario = (Usuario) session.getAttribute("user");
+        if (usuario == null) return ResponseEntity.status(401).body("Faça login primeiro");
+
+        tarefa.setUsuario(usuario);
+        return ResponseEntity.ok(tarefasRepository.save(tarefa));
     }
 
 
     @DeleteMapping("/{id}")
-    public void deletar(@PathVariable Long id) {
-        tarefasRepository.deleteById(id);
-    }
+    public ResponseEntity<?> deletar(@PathVariable Long id, HttpSession session) {
+        Usuario usuario = (Usuario) session.getAttribute("user");
+        if (usuario == null) return ResponseEntity.status(401).body("Faça login primeiro");
 
-
-    @GetMapping("/usuario/{usuarioId}")
-    public List<Tarefa> listarPorUsuario(@PathVariable Long usuarioId) {
-        return tarefasRepository.findByUsuarioId(usuarioId);
-    }
-
-
-    @DeleteMapping("/usuario/{usuarioId}")
-    public void deletarTarefasDoUsuario(@PathVariable Long usuarioId) {
-        List<Tarefa> tarefas = tarefasRepository.findByUsuarioId(usuarioId);
-        tarefasRepository.deleteAll(tarefas);
-    }
-
-
-    @DeleteMapping("/usuario/{usuarioId}/tarefa/{tarefaId}")
-    public void deletarTarefaDoUsuario(@PathVariable Long usuarioId, @PathVariable Long tarefaId) {
-        Tarefa tarefa = tarefasRepository.findById(tarefaId)
+        Tarefa tarefa = tarefasRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarefa não encontrada"));
 
-        if (!tarefa.getUsuario().getId().equals(usuarioId)) {
-            throw new RuntimeException("Essa tarefa não pertence a este usuário");
+        if (!tarefa.getUsuario().getId().equals(usuario.getId())) {
+            return ResponseEntity.status(403).body("Essa tarefa não pertence a você");
         }
 
         tarefasRepository.delete(tarefa);
+        return ResponseEntity.ok("Tarefa deletada com sucesso");
+    }
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<?> toggleTarefa(@PathVariable Long id, HttpSession session) {
+        Usuario usuario = (Usuario) session.getAttribute("user");
+        if (usuario == null) return ResponseEntity.status(401).body("Faça login primeiro");
+
+        Tarefa tarefa = tarefasRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Tarefa não encontrada"));
+
+        if (!tarefa.getUsuario().getId().equals(usuario.getId())) {
+            return ResponseEntity.status(403).body("Essa tarefa não pertence a você");
+        }
+
+        // Inverte o estado de ativo
+        tarefa.setAtivo(!tarefa.getAtivo());
+        tarefasRepository.save(tarefa);
+
+        return ResponseEntity.ok(tarefa);
     }
 
 }

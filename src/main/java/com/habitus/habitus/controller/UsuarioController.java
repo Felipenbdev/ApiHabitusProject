@@ -5,8 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.habitus.habitus.repository.UsuarioRepository;
+import jakarta.servlet.http.HttpSession;
 
-import java.util.List;
+
 
 @RestController
 @RequestMapping("/usuarios")
@@ -14,35 +15,38 @@ public class UsuarioController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    @GetMapping
-    public List<Usuario> listar() {
-        return usuarioRepository.findAll();
-    }
-
     @PostMapping
     public ResponseEntity<?> criar(@RequestBody Usuario usuario) {
         if (usuarioRepository.findByUsername(usuario.getUsername()) != null) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Erro: username já existe!");
+            return ResponseEntity.badRequest().body("Erro: username já existe!");
         }
         Usuario salvo = usuarioRepository.save(usuario);
         return ResponseEntity.ok(salvo);
     }
 
-    @GetMapping("/{id}")
-    public Usuario buscar(@PathVariable Long id) {
-        return usuarioRepository.findById(id).orElse(null);
+
+    @PostMapping("/login")
+    public ResponseEntity<Usuario> login(@RequestParam String username,
+                                         @RequestParam String senha,
+                                         HttpSession session) {
+        Usuario usuario = usuarioRepository.findByUsername(username);
+        if (usuario == null || !usuario.getSenha().equals(senha)) {
+            return ResponseEntity.status(401).build();
+        }
+        session.setAttribute("user", usuario);
+        return ResponseEntity.ok(usuario);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletar(@PathVariable Long id) {
-        if (!usuarioRepository.existsById(id)) {
-            return ResponseEntity
-                    .notFound()
-                    .build();
-        }
-        usuarioRepository.deleteById(id);
-        return ResponseEntity.ok().body("Usuário deletado com sucesso!");
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpSession session) {
+        session.invalidate();
+        return ResponseEntity.ok("Logout feito!");
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(HttpSession session) {
+        Usuario usuario = (Usuario) session.getAttribute("user");
+        if (usuario == null) return ResponseEntity.status(401).body("Nenhum usuário logado");
+        return ResponseEntity.ok(usuario);
     }
 }
