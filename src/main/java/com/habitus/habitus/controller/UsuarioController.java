@@ -17,8 +17,9 @@ public class UsuarioController {
 
     @PostMapping
     public ResponseEntity<?> criar(@RequestBody Usuario usuario) {
-        if (usuarioRepository.findByUsername(usuario.getUsername()) != null) {
-            return ResponseEntity.badRequest().body("Erro: username já existe!");
+        if (usuario.getUsername() == null || usuario.getUsername().trim().isEmpty() ||
+                usuarioRepository.findByUsername(usuario.getUsername()) != null) {
+            return ResponseEntity.badRequest().body("Erro: username inválido ou já existe!");
         }
         Usuario salvo = usuarioRepository.save(usuario);
         return ResponseEntity.ok(salvo);
