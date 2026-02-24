@@ -1,23 +1,19 @@
-# 1️⃣ Imagem base Java 21
-FROM eclipse-temurin:21-jdk-jammy
+# --------- Stage 1: Build ---------
+FROM gradle:8.5-jdk21 AS build
 
-# 2️⃣ Cria diretório do app
 WORKDIR /app
 
-# 3️⃣ Copia 
 COPY . .
 
-# 4️⃣ Dá permissão de execução ao Gradle Wrapper
-RUN chmod +x gradlew
+RUN gradle build -x test
 
-# 5️⃣ Builda o JAR dentro do container (ignora testes)
-RUN ./gradlew build -x test
+# --------- Stage 2: Runtime ---------
+FROM eclipse-temurin:21-jre-jammy
 
-# 6️⃣ Copia o JAR para rodar
-RUN cp build/libs/habitus-0.0.1-SNAPSHOT.jar app.jar
+WORKDIR /app
 
-# 7️⃣ Expõe a porta
+COPY --from=build /app/build/libs/*.jar app.jar
+
 EXPOSE 8080
 
-# 8️⃣ Comando para rodar a API
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","app.jar"]
