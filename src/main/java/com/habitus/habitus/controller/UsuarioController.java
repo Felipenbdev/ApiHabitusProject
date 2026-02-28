@@ -29,12 +29,14 @@ public class UsuarioController {
     @PostMapping
     public ResponseEntity<?> criar(@RequestBody Usuario usuario) {
 
-        if (usuarioRepository.findByUsername(usuario.getUsername()) != null) {
-            return ResponseEntity.badRequest().body("Username já existe");
+
+        if (usuario.getUsername() == null ||
+                usuario.getUsername().trim().isEmpty() ||
+                usuarioRepository.findByUsername(usuario.getUsername()) != null) {
+            return ResponseEntity.badRequest().body("Erro: username inválido ou já existe!");
         }
 
         usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
-
         Usuario salvo = usuarioRepository.save(usuario);
         return ResponseEntity.ok(salvo);
     }
@@ -46,7 +48,7 @@ public class UsuarioController {
 
         if (usuario == null ||
                 !passwordEncoder.matches(request.senha(), usuario.getSenha())) {
-            return ResponseEntity.status(401).body("Credenciais inválidas");
+            return ResponseEntity.status(401).body("Erro: credenciais inválidas!");
         }
 
         String token = jwtService.generateToken(usuario.getUsername());
