@@ -2,11 +2,11 @@ package com.habitus.habitus.controller;
 
 import com.habitus.habitus.dto.LoginRequest;
 import com.habitus.habitus.dto.LoginResponse;
+import com.habitus.habitus.dto.UsuarioResponse;
 import com.habitus.habitus.model.Usuario;
 import com.habitus.habitus.repository.UsuarioRepository;
 import com.habitus.habitus.security.JwtService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -54,5 +54,25 @@ public class UsuarioController {
         String token = jwtService.generateToken(usuario.getUsername());
 
         return ResponseEntity.ok(new LoginResponse(token));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(org.springframework.security.core.Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Não autenticado");
+        }
+
+        String username = authentication.getName();
+
+        Usuario usuario = usuarioRepository.findByUsername(username);
+
+        if (usuario == null) {
+            return ResponseEntity.status(404).body("Usuário não encontrado");
+        }
+
+        return ResponseEntity.ok(
+                new UsuarioResponse(usuario.getId(), usuario.getUsername())
+        );
     }
 }
