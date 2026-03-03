@@ -1,53 +1,78 @@
 package com.habitus.habitus.controller;
 
+import com.habitus.habitus.dto.LoginRequest;
+import com.habitus.habitus.dto.LoginResponse;
+import com.habitus.habitus.dto.UsuarioResponse;
 import com.habitus.habitus.model.Usuario;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import com.habitus.habitus.repository.UsuarioRepository;
-import jakarta.servlet.http.HttpSession;
-
-
+import com.habitus.habitus.security.JwtService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/usuarios")
 public class UsuarioController {
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+
+    public UsuarioController(UsuarioRepository usuarioRepository,
+                             JwtService jwtService,
+                             PasswordEncoder passwordEncoder) {
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder; // BCryptPasswordEncoder
+        this.jwtService = jwtService;
+    }
 
     @PostMapping
     public ResponseEntity<?> criar(@RequestBody Usuario usuario) {
-        if (usuario.getUsername() == null || usuario.getUsername().trim().isEmpty() ||
+
+
+        if (usuario.getUsername() == null ||
+                usuario.getUsername().trim().isEmpty() ||
                 usuarioRepository.findByUsername(usuario.getUsername()) != null) {
             return ResponseEntity.badRequest().body("Erro: username inválido ou já existe!");
         }
+
+        usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
         Usuario salvo = usuarioRepository.save(usuario);
         return ResponseEntity.ok(salvo);
     }
 
-
     @PostMapping("/login")
-    public ResponseEntity<Usuario> login(@RequestParam String username,
-                                         @RequestParam String senha,
-                                         HttpSession session) {
-        Usuario usuario = usuarioRepository.findByUsername(username);
-        if (usuario == null || !usuario.getSenha().equals(senha)) {
-            return ResponseEntity.status(401).build();
-        }
-        session.setAttribute("user", usuario);
-        return ResponseEntity.ok(usuario);
-    }
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpSession session) {
-        session.invalidate();
-        return ResponseEntity.ok("Logout feito!");
+        Usuario usuario = usuarioRepository.findByUsername(request.username());
+
+        if (usuario == null ||
+                !passwordEncoder.matches(request.senha(), usuario.getSenha())) {
+            return ResponseEntity.status(401).body("Erro: credenciais inválidas!");
+        }
+
+        String token = jwtService.generateToken(usuario.getUsername());
+
+        return ResponseEntity.ok(new LoginResponse(token));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(HttpSession session) {
-        Usuario usuario = (Usuario) session.getAttribute("user");
-        if (usuario == null) return ResponseEntity.status(401).body("Nenhum usuário logado");
-        return ResponseEntity.ok(usuario);
+    public ResponseEntity<?> me(org.springframework.security.core.Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Não autenticado");
+        }
+
+        String username = authentication.getName();
+
+        Usuario usuario = usuarioRepository.findByUsername(username);
+
+        if (usuario == null) {
+            return ResponseEntity.status(404).body("Usuário não encontrado");
+        }
+
+        return ResponseEntity.ok(
+                new UsuarioResponse(usuario.getId(), usuario.getUsername())
+        );
     }
 }
