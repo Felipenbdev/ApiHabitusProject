@@ -6,10 +6,15 @@ WORKDIR /app
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle.kts settings.gradle.kts ./
+
 RUN chmod +x gradlew
 RUN ./gradlew dependencies --no-daemon
 
 COPY . .
+
+# 👇 precisa repetir
+RUN chmod +x gradlew
+
 RUN ./gradlew build -x test --no-daemon
 
 # --------- Stage 2: Runtime ---------
